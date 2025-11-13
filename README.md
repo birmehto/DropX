@@ -1,17 +1,16 @@
 # DropX
 
-A customizable dropdown widget for Flutter with keyboard navigation and theme support.
+A fully customizable dropdown package for Flutter with keyboard navigation support.
 
 [![pub package](https://img.shields.io/pub/v/dropx.svg)](https://pub.dev/packages/dropx)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Features
 
-- Keyboard navigation (arrow keys, Enter, Escape)
-- Theme-aware styling
+- Full keyboard navigation
 - Built-in search and filtering
 - Smart positioning
-- Fully customizable
+- Custom styling
 - Loading states
 
 ## Installation
