@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'dropx_config.dart';
 import 'dropx_controller.dart';
-import 'dropx_overlay.dart';
+import 'dropx_debouncer.dart';
 import 'dropx_keyboard_handler.dart';
+import 'dropx_overlay.dart';
 
 /// A highly customizable dropdown widget with keyboard navigation support.
 ///
@@ -73,6 +75,18 @@ class Dropx<T> extends StatefulWidget {
   /// Configuration for dropdown styling and behavior
   final DropxConfig config;
 
+  /// Whether to show a clear button when a value is selected
+  final bool showClearButton;
+
+  /// Callback when the clear button is pressed
+  final VoidCallback? onClear;
+
+  /// Callback when text field value changes
+  final ValueChanged<String>? onChanged;
+
+  /// Semantic label for accessibility
+  final String? semanticLabel;
+
   const Dropx({
     super.key,
     required this.items,
@@ -94,6 +108,10 @@ class Dropx<T> extends StatefulWidget {
     this.decoration,
     this.enabled = true,
     this.config = const DropxConfig(),
+    this.showClearButton = false,
+    this.onClear,
+    this.onChanged,
+    this.semanticLabel,
   });
 
   @override
@@ -106,6 +124,7 @@ class _DropxState<T> extends State<Dropx<T>> {
   late final LayerLink _layerLink;
   late DropxController<T> _controller;
   late DropxKeyboardHandler _keyboardHandler;
+  Debouncer? _debouncer;
 
   @override
   void initState() {
@@ -133,6 +152,10 @@ class _DropxState<T> extends State<Dropx<T>> {
       isDropdownOpen: () => _controller.isDropdownOpen,
     );
 
+    if (widget.config.searchDebounce != null) {
+      _debouncer = Debouncer(delay: widget.config.searchDebounce!);
+    }
+
     widget.focusNode.addListener(_onFocusChange);
 
     // Set initial value if provided
@@ -147,6 +170,9 @@ class _DropxState<T> extends State<Dropx<T>> {
 
     // Update items if they changed
     if (oldWidget.items != widget.items) {
+      final wasOpen = _controller.isDropdownOpen;
+      final currentQuery = _textController.text;
+
       _controller = DropxController<T>(
         textController: _textController,
         scrollController: _scrollController,
@@ -157,15 +183,28 @@ class _DropxState<T> extends State<Dropx<T>> {
         enableSearch: widget.enableSearch,
         minSearchLength: widget.config.minSearchLength,
       );
-      if (_controller.isDropdownOpen) {
-        _updateOverlay();
+
+      // Re-apply current filter to show updated items
+      if (widget.enableSearch && currentQuery.isNotEmpty) {
+        _controller.filterItems(currentQuery);
+      } else {
+        _controller.updateFilteredItems(widget.items);
+      }
+
+      // Rebuild overlay if it was open
+      if (wasOpen) {
+        _removeOverlay();
+        _showOverlay();
       }
     }
 
     // Update initial value if changed
-    if (oldWidget.initialValue != widget.initialValue &&
-        widget.initialValue != null) {
-      _textController.text = _getDisplayText(widget.initialValue as T);
+    if (oldWidget.initialValue != widget.initialValue) {
+      if (widget.initialValue != null) {
+        _textController.text = _getDisplayText(widget.initialValue as T);
+      } else {
+        _textController.clear();
+      }
     }
   }
 
@@ -173,6 +212,7 @@ class _DropxState<T> extends State<Dropx<T>> {
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
+    _debouncer?.dispose();
     widget.focusNode.removeListener(_onFocusChange);
     _removeOverlay();
     super.dispose();
@@ -205,21 +245,51 @@ class _DropxState<T> extends State<Dropx<T>> {
   void _filterItems(String query) {
     if (!widget.enableSearch) return;
 
-    setState(() {
-      _controller.filterItems(query);
-    });
+    widget.onChanged?.call(query);
 
-    if (_controller.filteredItems.isNotEmpty && widget.focusNode.hasFocus) {
+    void performFilter() {
+      setState(() {
+        _controller.filterItems(query);
+      });
+
+      if (widget.focusNode.hasFocus) {
+        if (_controller.isDropdownOpen) {
+          // Update existing overlay
+          _updateOverlay();
+        } else if (_controller.filteredItems.isNotEmpty) {
+          // Show overlay if there are items
+          _showOverlay();
+        }
+      }
+    }
+
+    if (_debouncer != null) {
+      _debouncer!.run(performFilter);
+    } else {
+      performFilter();
+    }
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _textController.clear();
+      _controller.updateFilteredItems(widget.items);
+      _controller.setSelectedIndex(-1);
+    });
+    widget.onClear?.call();
+
+    // If field still has focus, show overlay with all items
+    if (widget.focusNode.hasFocus) {
+      _removeOverlay();
       _showOverlay();
-    } else if (_controller.filteredItems.isEmpty) {
-      _updateOverlay();
+    } else {
+      _removeOverlay();
     }
   }
 
   void _showOverlay() {
     if (_controller.overlayEntry != null) return;
     if (widget.isLoading) return;
-    if (_controller.filteredItems.isEmpty && widget.emptyWidget == null) return;
 
     final overlayEntry = _createOverlayEntry();
     _controller.setOverlayEntry(overlayEntry);
@@ -298,18 +368,19 @@ class _DropxState<T> extends State<Dropx<T>> {
     var size = renderBox.size;
     var offset = renderBox.localToGlobal(Offset.zero);
 
-    final screenHeight = MediaQuery.of(context).size.height;
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final keyboardHeight = mediaQuery.viewInsets.bottom;
     final dropdownMaxHeight = widget.config.maxHeight ?? 300.0;
     final dropdownMinHeight = widget.config.minHeight ?? 150.0;
     final dropdownWidth = widget.config.width ?? size.width;
 
-    final spaceBelow = screenHeight - offset.dy - size.height;
+    // Calculate available space considering keyboard
+    final availableScreenHeight = screenHeight - keyboardHeight;
+    final spaceBelow = availableScreenHeight - offset.dy - size.height;
     final spaceAbove = offset.dy;
 
     final showAbove = spaceBelow < dropdownMaxHeight && spaceAbove > spaceBelow;
-    final verticalOffset = showAbove
-        ? -(dropdownMaxHeight + 2.0)
-        : size.height + 2.0;
 
     return OverlayEntry(
       builder: (context) {
@@ -317,53 +388,73 @@ class _DropxState<T> extends State<Dropx<T>> {
         final colorScheme = theme.colorScheme;
         final style = widget.config.style;
 
-        return Positioned(
-          width: dropdownWidth,
-          child: CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            offset: Offset(0.0, verticalOffset),
-            child: Material(
-              elevation: widget.config.elevation,
-              shadowColor: style?.overlayShadowColor,
-              borderRadius: widget.config.borderRadius,
-              child: Container(
-                constraints: BoxConstraints(
-                  minHeight: dropdownMinHeight,
-                  maxHeight: showAbove
-                      ? (spaceAbove - 10).clamp(
-                          dropdownMinHeight,
-                          dropdownMaxHeight,
-                        )
-                      : (spaceBelow - 10).clamp(
-                          dropdownMinHeight,
-                          dropdownMaxHeight,
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            // Close dropdown when clicking outside
+            _removeOverlay();
+            widget.focusNode.unfocus();
+          },
+          child: Stack(
+            children: [
+              // Invisible barrier to detect outside clicks
+              Positioned.fill(child: Container(color: Colors.transparent)),
+              // Actual dropdown
+              Positioned(
+                left: offset.dx,
+                top: showAbove ? null : offset.dy + size.height + 2.0,
+                bottom: showAbove
+                    ? (screenHeight - offset.dy + 2.0 + keyboardHeight)
+                    : null,
+                width: dropdownWidth,
+                child: GestureDetector(
+                  onTap: () {
+                    // Prevent closing when clicking inside dropdown
+                  },
+                  child: Material(
+                    elevation: widget.config.elevation,
+                    shadowColor: style?.overlayShadowColor,
+                    borderRadius: widget.config.borderRadius,
+                    child: Container(
+                      constraints: BoxConstraints(
+                        minHeight: dropdownMinHeight,
+                        maxHeight: showAbove
+                            ? (spaceAbove - 10).clamp(
+                                dropdownMinHeight,
+                                dropdownMaxHeight,
+                              )
+                            : (spaceBelow - 10).clamp(
+                                dropdownMinHeight,
+                                dropdownMaxHeight,
+                              ),
+                      ),
+                      decoration: BoxDecoration(
+                        color: style?.overlayBackgroundColor ??
+                            colorScheme.surface,
+                        borderRadius: widget.config.borderRadius,
+                        border: Border.all(
+                          color: style?.overlayBorderColor ??
+                              colorScheme.outline.withValues(alpha: 0.5),
+                          width: style?.overlayBorderWidth ?? 1.0,
                         ),
-                ),
-                decoration: BoxDecoration(
-                  color: style?.overlayBackgroundColor ?? colorScheme.surface,
-                  borderRadius: widget.config.borderRadius,
-                  border: Border.all(
-                    color:
-                        style?.overlayBorderColor ??
-                        colorScheme.outline.withOpacity(0.5),
-                    width: style?.overlayBorderWidth ?? 1.0,
+                      ),
+                      child: DropxOverlay<T>(
+                        items: _controller.filteredItems,
+                        selectedIndex: _controller.selectedIndex,
+                        scrollController: _scrollController,
+                        onItemSelected: _selectItem,
+                        getDisplayText: _getDisplayText,
+                        itemBuilder: widget.itemBuilder,
+                        header: widget.header,
+                        footer: widget.footer,
+                        emptyWidget: widget.emptyWidget,
+                        config: widget.config,
+                      ),
+                    ),
                   ),
                 ),
-                child: DropxOverlay<T>(
-                  items: _controller.filteredItems,
-                  selectedIndex: _controller.selectedIndex,
-                  scrollController: _scrollController,
-                  onItemSelected: _selectItem,
-                  getDisplayText: _getDisplayText,
-                  itemBuilder: widget.itemBuilder,
-                  header: widget.header,
-                  footer: widget.footer,
-                  emptyWidget: widget.emptyWidget,
-                  config: widget.config,
-                ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -378,118 +469,136 @@ class _DropxState<T> extends State<Dropx<T>> {
     final textFieldBorderRadius =
         widget.config.textFieldBorderRadius ?? BorderRadius.circular(4);
 
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          if (!widget.enabled) return KeyEventResult.ignored;
-          return _keyboardHandler.handleKeyEvent(event);
-        },
-        child: TextField(
-          controller: _textController,
-          focusNode: widget.focusNode,
-          enabled: widget.enabled,
-          style:
-              widget.config.textFieldTextStyle ??
-              theme.textTheme.bodyMedium?.copyWith(
-                color: style?.textFieldTextColor ?? colorScheme.onSurface,
-              ),
-          decoration:
-              widget.decoration ??
-              InputDecoration(
-                hintText: widget.hint,
-                hintStyle:
-                    widget.config.hintTextStyle ??
-                    theme.textTheme.bodyMedium?.copyWith(
-                      color:
-                          style?.textFieldHintColor ??
-                          colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                isDense: true,
-                filled: style?.textFieldBackgroundColor != null,
-                fillColor: style?.textFieldBackgroundColor,
-                contentPadding:
-                    widget.config.textFieldContentPadding ??
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                suffixIcon: widget.isLoading
-                    ? Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: widget.config.loadingIndicatorSize,
-                          height: widget.config.loadingIndicatorSize,
-                          child: CircularProgressIndicator(
-                            strokeWidth:
-                                widget.config.loadingIndicatorStrokeWidth,
-                            color:
-                                style?.loadingIndicatorColor ??
-                                colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        _controller.isDropdownOpen
-                            ? (widget.config.arrowIconOpen ??
-                                  Icons.arrow_drop_up)
-                            : (widget.config.arrowIconClosed ??
-                                  Icons.arrow_drop_down),
-                        size: widget.config.arrowIconSize,
-                        color: widget.enabled
-                            ? (_controller.isDropdownOpen
-                                  ? (style?.arrowIconColorOpen ??
-                                        style?.arrowIconColor ??
-                                        colorScheme.onSurface)
-                                  : (style?.arrowIconColor ??
-                                        colorScheme.onSurface))
-                            : (style?.arrowIconColorDisabled ??
-                                  colorScheme.onSurface.withOpacity(0.38)),
+    final showClear = widget.showClearButton &&
+        _textController.text.isNotEmpty &&
+        widget.enabled;
+
+    return Semantics(
+      label: widget.semanticLabel ?? widget.hint,
+      enabled: widget.enabled,
+      child: CompositedTransformTarget(
+        link: _layerLink,
+        child: Focus(
+          onKeyEvent: (node, event) {
+            if (!widget.enabled) return KeyEventResult.ignored;
+            return _keyboardHandler.handleKeyEvent(event);
+          },
+          child: TextField(
+            controller: _textController,
+            focusNode: widget.focusNode,
+            enabled: widget.enabled,
+            style: widget.config.textFieldTextStyle ??
+                theme.textTheme.bodyMedium?.copyWith(
+                  color: style?.textFieldTextColor ?? colorScheme.onSurface,
+                ),
+            decoration: widget.decoration ??
+                InputDecoration(
+                  hintText: widget.hint,
+                  hintStyle: widget.config.hintTextStyle ??
+                      theme.textTheme.bodyMedium?.copyWith(
+                        color: style?.textFieldHintColor ??
+                            colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
-                border: widget.config.showTextFieldBorder
-                    ? OutlineInputBorder(
-                        borderRadius: textFieldBorderRadius,
-                        borderSide: BorderSide(
-                          color:
-                              style?.textFieldBorderColor ??
-                              colorScheme.outline,
-                          width: widget.config.textFieldBorderWidth,
+                  isDense: true,
+                  filled: style?.textFieldBackgroundColor != null,
+                  fillColor: style?.textFieldBackgroundColor,
+                  contentPadding: widget.config.textFieldContentPadding ??
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  suffixIcon: widget.isLoading
+                      ? Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: widget.config.loadingIndicatorSize,
+                            height: widget.config.loadingIndicatorSize,
+                            child: CircularProgressIndicator(
+                              strokeWidth:
+                                  widget.config.loadingIndicatorStrokeWidth,
+                              color: style?.loadingIndicatorColor ??
+                                  colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (showClear)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.clear,
+                                  size: widget.config.arrowIconSize,
+                                  color: style?.arrowIconColor ??
+                                      colorScheme.onSurface,
+                                ),
+                                onPressed: _clearSelection,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Clear selection',
+                              ),
+                            Icon(
+                              _controller.isDropdownOpen
+                                  ? (widget.config.arrowIconOpen ??
+                                      Icons.arrow_drop_up)
+                                  : (widget.config.arrowIconClosed ??
+                                      Icons.arrow_drop_down),
+                              size: widget.config.arrowIconSize,
+                              color: widget.enabled
+                                  ? (_controller.isDropdownOpen
+                                      ? (style?.arrowIconColorOpen ??
+                                          style?.arrowIconColor ??
+                                          colorScheme.onSurface)
+                                      : (style?.arrowIconColor ??
+                                          colorScheme.onSurface))
+                                  : (style?.arrowIconColorDisabled ??
+                                      colorScheme.onSurface.withValues(
+                                        alpha: 0.38,
+                                      )),
+                            ),
+                          ],
                         ),
-                      )
-                    : InputBorder.none,
-                enabledBorder: widget.config.showTextFieldBorder
-                    ? OutlineInputBorder(
-                        borderRadius: textFieldBorderRadius,
-                        borderSide: BorderSide(
-                          color:
-                              style?.textFieldBorderColor ??
-                              colorScheme.outline,
-                          width: widget.config.textFieldBorderWidth,
-                        ),
-                      )
-                    : InputBorder.none,
-                focusedBorder: widget.config.showTextFieldBorder
-                    ? OutlineInputBorder(
-                        borderRadius: textFieldBorderRadius,
-                        borderSide: BorderSide(
-                          color:
-                              style?.textFieldFocusedBorderColor ??
-                              colorScheme.primary,
-                          width: widget.config.textFieldFocusedBorderWidth,
-                        ),
-                      )
-                    : InputBorder.none,
-                disabledBorder: widget.config.showTextFieldBorder
-                    ? OutlineInputBorder(
-                        borderRadius: textFieldBorderRadius,
-                        borderSide: BorderSide(
-                          color:
-                              style?.textFieldDisabledBorderColor ??
-                              colorScheme.onSurface.withOpacity(0.12),
-                          width: widget.config.textFieldBorderWidth,
-                        ),
-                      )
-                    : InputBorder.none,
-              ),
-          onChanged: widget.enableSearch ? _filterItems : null,
-          readOnly: !widget.enableSearch,
+                  border: widget.config.showTextFieldBorder
+                      ? OutlineInputBorder(
+                          borderRadius: textFieldBorderRadius,
+                          borderSide: BorderSide(
+                            color: style?.textFieldBorderColor ??
+                                colorScheme.outline,
+                            width: widget.config.textFieldBorderWidth,
+                          ),
+                        )
+                      : InputBorder.none,
+                  enabledBorder: widget.config.showTextFieldBorder
+                      ? OutlineInputBorder(
+                          borderRadius: textFieldBorderRadius,
+                          borderSide: BorderSide(
+                            color: style?.textFieldBorderColor ??
+                                colorScheme.outline,
+                            width: widget.config.textFieldBorderWidth,
+                          ),
+                        )
+                      : InputBorder.none,
+                  focusedBorder: widget.config.showTextFieldBorder
+                      ? OutlineInputBorder(
+                          borderRadius: textFieldBorderRadius,
+                          borderSide: BorderSide(
+                            color: style?.textFieldFocusedBorderColor ??
+                                colorScheme.primary,
+                            width: widget.config.textFieldFocusedBorderWidth,
+                          ),
+                        )
+                      : InputBorder.none,
+                  disabledBorder: widget.config.showTextFieldBorder
+                      ? OutlineInputBorder(
+                          borderRadius: textFieldBorderRadius,
+                          borderSide: BorderSide(
+                            color: style?.textFieldDisabledBorderColor ??
+                                colorScheme.onSurface.withValues(alpha: 0.12),
+                            width: widget.config.textFieldBorderWidth,
+                          ),
+                        )
+                      : InputBorder.none,
+                ),
+            onChanged: widget.enableSearch ? _filterItems : null,
+            readOnly: !widget.enableSearch,
+          ),
         ),
       ),
     );

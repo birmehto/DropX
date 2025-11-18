@@ -59,9 +59,8 @@ class DropxController<T> {
       _filteredItems = allItems;
     } else {
       final filterFunc = customFilter ?? _defaultFilter;
-      _filteredItems = allItems
-          .where((item) => filterFunc(item, query))
-          .toList();
+      _filteredItems =
+          allItems.where((item) => filterFunc(item, query)).toList();
     }
     _selectedIndex = _filteredItems.isNotEmpty ? 0 : -1;
   }

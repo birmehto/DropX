@@ -1,48 +1,89 @@
-# Screenshots
+# Screenshots Guide
 
-Add your DropX screenshots here to display them in the main README.
+This folder contains screenshots for the DropX package documentation.
+
+## How to Take Screenshots
+
+1. **Run the example app:**
+   ```bash
+   cd example
+   flutter run
+   ```
+
+2. **Navigate to each example screen** from the main menu
+
+3. **Take screenshots** of each screen showing the dropdown in action
 
 ## Required Screenshots
 
-1. **basic.png** - Basic dropdown example
-2. **custom.png** - Custom styled dropdown
-3. **dividers.png** - Dropdown with dividers
-4. **dark.png** - Dark theme example
-5. **search.png** - Search/filter in action
-6. **loading.png** - Loading state
+### 1. basic_dropdown.png
+- Screen: Basic Example
+- Show: Dropdown open with items visible
+- Focus: Simple, clean dropdown interface
 
-## Screenshot Guidelines
+### 2. search_filter.png
+- Screen: Search & Filter
+- Show: User typing in search field with filtered results
+- Focus: Search functionality
 
-- **Size**: 300x400px (portrait) or 400x300px (landscape)
-- **Format**: PNG with transparency
+### 3. clear_button.png
+- Screen: Clear Button
+- Show: Dropdown with clear button visible (after selection)
+- Focus: Clear button (×) icon
+
+### 4. custom_styling.png
+- Screen: Custom Styling
+- Show: All three styled dropdowns
+- Focus: Different styling options (rounded, dividers, colorful)
+
+### 5. form_validation.png
+- Screen: Form Validation
+- Show: Form with validation errors visible
+- Focus: Integration with Flutter forms
+
+## Screenshot Specifications
+
+- **Device**: Use a phone simulator (iPhone 14 or Pixel 7)
+- **Size**: Portrait orientation
+- **Format**: PNG
 - **Quality**: High resolution (2x or 3x)
-- **Background**: Use a clean, simple background
-- **Content**: Show the dropdown in action
+- **Background**: Use the default app background
 
-## How to Capture
+## Tips for Great Screenshots
 
-1. Run your example app
-2. Use Flutter DevTools or device screenshot
-3. Crop to show just the relevant UI
-4. Optimize file size (use tools like TinyPNG)
-5. Save with the correct filename
+1. **Show the dropdown open** - Most screenshots should show the dropdown expanded
+2. **Use realistic data** - The examples already have good data
+3. **Capture key moments** - Show interactions like search, selection, validation
+4. **Good lighting** - Use light mode for better visibility
+5. **Clean UI** - No debug banners or overlays
 
-## Example Code for Screenshots
+## After Taking Screenshots
 
-Use the examples in `example/` folder to generate screenshots:
+1. Save files with the exact names listed above
+2. Place them in this `screenshots/` folder
+3. Optimize file sizes (use tools like TinyPNG)
+4. Update the main README.md to reference these screenshots
+
+## Example Commands
 
 ```bash
-# Run the basic example
-flutter run example/example.dart
+# Run on iOS Simulator
+flutter run -d "iPhone 14"
 
-# Run the advanced styling example
-flutter run example/advanced_styling_example.dart
+# Run on Android Emulator
+flutter run -d emulator-5554
+
+# Take screenshot (iOS)
+xcrun simctl io booted screenshot screenshot.png
+
+# Take screenshot (Android)
+adb exec-out screencap -p > screenshot.png
 ```
 
-## Tips
+## Screenshot Checklist
 
-- Show the dropdown in both closed and open states
-- Highlight key features (search, keyboard navigation, etc.)
-- Use realistic data
-- Ensure good contrast and readability
-- Consider creating an animated GIF for the main README
+- [ ] basic_dropdown.png
+- [ ] search_filter.png
+- [ ] clear_button.png
+- [ ] custom_styling.png
+- [ ] form_validation.png
