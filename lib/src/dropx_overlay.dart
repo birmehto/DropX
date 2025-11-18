@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'dropx_config.dart';
 
 /// Builds the Dropx overlay content
@@ -56,8 +57,8 @@ class DropxOverlay<T> extends StatelessWidget {
                 thickness: config.dividerThickness,
                 indent: config.dividerIndent,
                 endIndent: config.dividerEndIndent,
-                color:
-                    style?.dividerColor ?? colorScheme.outline.withOpacity(0.2),
+                color: style?.dividerColor ??
+                    colorScheme.outline.withValues(alpha: 0.2),
               );
             },
             itemBuilder: (context, index) {
@@ -80,31 +81,29 @@ class DropxOverlay<T> extends StatelessWidget {
                 highlightColor: style?.highlightColor,
                 hoverColor: config.enableHoverEffect
                     ? (style?.hoveredItemBackgroundColor ??
-                          colorScheme.primaryContainer.withOpacity(0.5))
+                        colorScheme.primaryContainer.withValues(alpha: 0.5))
                     : null,
                 child: Container(
                   padding: config.itemPadding,
                   decoration: BoxDecoration(
                     color: isSelected
                         ? (style?.selectedItemBackgroundColor ??
-                              colorScheme.primaryContainer)
+                            colorScheme.primaryContainer)
                         : (style?.itemBackgroundColor ?? colorScheme.surface),
                   ),
                   child: Text(
                     getDisplayText(item),
                     style: isSelected
                         ? (config.selectedItemTextStyle ??
-                              theme.textTheme.bodyMedium?.copyWith(
-                                color:
-                                    style?.selectedItemTextColor ??
-                                    colorScheme.onPrimaryContainer,
-                              ))
+                            theme.textTheme.bodyMedium?.copyWith(
+                              color: style?.selectedItemTextColor ??
+                                  colorScheme.onPrimaryContainer,
+                            ))
                         : (config.itemTextStyle ??
-                              theme.textTheme.bodyMedium?.copyWith(
-                                color:
-                                    style?.itemTextColor ??
-                                    colorScheme.onSurface,
-                              )),
+                            theme.textTheme.bodyMedium?.copyWith(
+                              color:
+                                  style?.itemTextColor ?? colorScheme.onSurface,
+                            )),
                   ),
                 ),
               );
@@ -129,19 +128,16 @@ class DropxOverlay<T> extends StatelessWidget {
           Icon(
             Icons.search_off,
             size: config.emptyIconSize,
-            color:
-                style?.emptyIconColor ??
-                colorScheme.onSurface.withOpacity(0.38),
+            color: style?.emptyIconColor ??
+                colorScheme.onSurface.withValues(alpha: 0.38),
           ),
           const SizedBox(height: 8),
           Text(
             'No items found',
-            style:
-                config.emptyTextStyle ??
+            style: config.emptyTextStyle ??
                 theme.textTheme.bodyMedium?.copyWith(
-                  color:
-                      style?.emptyTextColor ??
-                      colorScheme.onSurface.withOpacity(0.6),
+                  color: style?.emptyTextColor ??
+                      colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
         ],

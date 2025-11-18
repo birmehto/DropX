@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'dropx_style.dart';
 
 /// Configuration class for Dropx styling and behavior
@@ -41,6 +42,9 @@ class DropxConfig {
 
   /// Minimum characters required before filtering
   final int minSearchLength;
+
+  /// Debounce duration for search filtering (null = no debounce)
+  final Duration? searchDebounce;
 
   /// Duration for scroll animation
   final Duration scrollAnimationDuration;
@@ -119,6 +123,7 @@ class DropxConfig {
     this.hintTextStyle,
     this.emptyTextStyle,
     this.minSearchLength = 0,
+    this.searchDebounce,
     this.scrollAnimationDuration = const Duration(milliseconds: 200),
     this.scrollAnimationCurve = Curves.easeInOut,
     this.itemHeight = 50.0,
@@ -156,6 +161,7 @@ class DropxConfig {
     TextStyle? hintTextStyle,
     TextStyle? emptyTextStyle,
     int? minSearchLength,
+    Duration? searchDebounce,
     Duration? scrollAnimationDuration,
     Curve? scrollAnimationCurve,
     double? itemHeight,
@@ -194,6 +200,7 @@ class DropxConfig {
       hintTextStyle: hintTextStyle ?? this.hintTextStyle,
       emptyTextStyle: emptyTextStyle ?? this.emptyTextStyle,
       minSearchLength: minSearchLength ?? this.minSearchLength,
+      searchDebounce: searchDebounce ?? this.searchDebounce,
       scrollAnimationDuration:
           scrollAnimationDuration ?? this.scrollAnimationDuration,
       scrollAnimationCurve: scrollAnimationCurve ?? this.scrollAnimationCurve,

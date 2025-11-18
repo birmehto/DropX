@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'simple_exaple.dart';
-import 'advanced_example.dart';
+
+import 'screens/basic_example_screen.dart';
+import 'screens/clear_button_screen.dart';
+import 'screens/custom_styling_screen.dart';
+import 'screens/form_validation_screen.dart';
+import 'screens/search_filter_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,16 +18,16 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'DropX Examples',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const ExampleHomePage(),
+      home: const ExampleListScreen(),
     );
   }
 }
 
-class ExampleHomePage extends StatelessWidget {
-  const ExampleHomePage({super.key});
+class ExampleListScreen extends StatelessWidget {
+  const ExampleListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,64 +36,109 @@ class ExampleHomePage extends StatelessWidget {
         title: const Text('DropX Examples'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.arrow_drop_down_circle,
-              size: 80,
-              color: Colors.deepPurple,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'DropX Package Examples',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Choose an example to explore',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 48),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SimpleExamplePage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.list),
-              label: const Text('Simple Examples'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildExampleCard(
+            context,
+            title: '1. Basic Dropdown',
+            description: 'Simple dropdown with item selection',
+            icon: Icons.arrow_drop_down_circle,
+            color: Colors.blue,
+            screen: const BasicExampleScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildExampleCard(
+            context,
+            title: '2. Search & Filter',
+            description: 'Dropdown with search functionality',
+            icon: Icons.search,
+            color: Colors.green,
+            screen: const SearchFilterScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildExampleCard(
+            context,
+            title: '3. Clear Button',
+            description: 'Dropdown with clear button',
+            icon: Icons.clear,
+            color: Colors.orange,
+            screen: const ClearButtonScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildExampleCard(
+            context,
+            title: '4. Custom Styling',
+            description: 'Custom colors and styling',
+            icon: Icons.palette,
+            color: Colors.purple,
+            screen: const CustomStylingScreen(),
+          ),
+          const SizedBox(height: 16),
+          _buildExampleCard(
+            context,
+            title: '5. Form Validation',
+            description: 'Integration with Flutter forms',
+            icon: Icons.check_circle,
+            color: Colors.red,
+            screen: const FormValidationScreen(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExampleCard(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required Widget screen,
+  }) {
+    return Card(
+      elevation: 2,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => screen),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdvancedExamplePage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.palette),
-              label: const Text('Advanced Styling'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-              ),
-            ),
-          ],
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
         ),
       ),
     );

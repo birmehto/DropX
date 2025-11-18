@@ -481,8 +481,8 @@ void main() {
               displayText: (item) => item['name']!,
               customFilter: (item, query) {
                 return item['name']!.toLowerCase().contains(
-                      query.toLowerCase(),
-                    ) ||
+                          query.toLowerCase(),
+                        ) ||
                     item['code']!.toLowerCase().contains(query.toLowerCase());
               },
             ),

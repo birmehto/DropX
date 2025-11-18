@@ -1,0 +1,7 @@
+# Exclude development files
+.github/
+screenshots/
+build/
+*.tar.gz
+.vscode/
+.idea/
