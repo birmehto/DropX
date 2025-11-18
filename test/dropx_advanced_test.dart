@@ -176,10 +176,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('A'), findsOneWidget);
 
-      // Update items
-      await tester.tap(find.text('Update'));
+      // Close dropdown first by tapping outside
+      await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
 
+      // Update items
+      await tester.tap(find.text('Update'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // Open dropdown again to see updated items
       await tester.tap(find.byType(TextField));
       await tester.pumpAndSettle();
       expect(find.text('X'), findsOneWidget);
